@@ -1,8 +1,11 @@
 import re
+from typing import Any, Dict, Mapping, Optional, TypeVar
 
 import pymongo
 from bson.dbref import DBRef
+from pymongo.collection import Collection
 from pymongo.read_preferences import ReadPreference
+from typing_extensions import NotRequired, TypedDict
 
 from mongoengine import signals
 from mongoengine.base import (
@@ -33,6 +36,15 @@ from mongoengine.queryset import (
     QuerySet,
     transform,
 )
+
+_U = TypeVar("_U", bound="Document")
+_MetaDict = Mapping[str, Any]
+
+class _UnderMetaDict(TypedDict):
+    id_field: NotRequired[str]
+    strict: bool
+    collection: str
+
 
 __all__ = (
     "Document",
@@ -175,6 +187,11 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
 
     __slots__ = ("__objects",)
 
+    meta: _MetaDict
+    _meta: _UnderMetaDict
+    _fields: Dict[str, Any]
+    _collection: Collection[Any] | None
+
     @property
     def pk(self):
         """Get the primary key."""
@@ -183,7 +200,7 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
         return getattr(self, self._meta["id_field"])
 
     @pk.setter
-    def pk(self, value):
+    def pk(self, value: Any):
         """Set the primary key."""
         return setattr(self, self._meta["id_field"], value)
 
@@ -207,7 +224,7 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
         cls._collection = None
 
     @classmethod
-    def _get_collection(cls):
+    def _get_collection(cls) -> Collection[Any]:
         """Return the PyMongo collection corresponding to this document.
 
         Upon first call, this method:
@@ -284,7 +301,7 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
 
         return data
 
-    def modify(self, query=None, **update):
+    def modify(self, query: Optional[object]=None, **update) -> bool:
         """Perform an atomic update of the document in the database and reload
         the document object using updated version.
 
@@ -620,7 +637,7 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
             select_dict["__".join(field_parts)] = val
         return select_dict
 
-    def update(self, **kwargs):
+    def update(self, **kwargs: Any) -> int:
         """Performs an update on the :class:`~mongoengine.Document`
         A convenience wrapper to :meth:`~mongoengine.QuerySet.update`.
 
@@ -639,7 +656,7 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
         # Need to add shard key to query, or you get an error
         return self._qs.filter(**self._object_key).update_one(**kwargs)
 
-    def delete(self, signal_kwargs=None, **write_concern):
+    def delete(self, signal_kwargs: object=None, **write_concern) -> None:
         """Delete the :class:`~mongoengine.Document` from the database. This
         will only take effect if the document has been previously saved.
 

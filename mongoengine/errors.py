@@ -114,7 +114,7 @@ class ValidationError(AssertionError):
     def _set_message(self, message):
         self._message = message
 
-    message = property(_get_message, _set_message)
+    message: str = property(_get_message, _set_message)
 
     def to_dict(self):
         """Returns a dictionary of all errors within a document

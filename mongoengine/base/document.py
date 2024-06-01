@@ -1,7 +1,9 @@
 import copy
 import numbers
+from typing_extensions import Self
 import warnings
 from functools import partial
+from typing import Any, Dict, List, Optional, Tuple
 
 import pymongo
 from bson import SON, DBRef, ObjectId, json_util
@@ -327,7 +329,9 @@ class BaseDocument:
 
         return self._data["_text_score"]
 
-    def to_mongo(self, use_db_field=True, fields=None):
+    def to_mongo(
+        self, use_db_field: bool = True, fields: List[str] | None = None
+    ) -> SON[Any, Any]:
         """
         Return as SON data ready for use with MongoDB.
         """
@@ -383,7 +387,7 @@ class BaseDocument:
 
         return data
 
-    def validate(self, clean=True):
+    def validate(self, clean: bool = True) -> None:
         """Ensure that all fields' values are valid and that required fields
         are present.
 
@@ -437,7 +441,7 @@ class BaseDocument:
             message = f"ValidationError ({self._class_name}:{pk}) "
             raise ValidationError(message, errors=errors)
 
-    def to_json(self, *args, **kwargs):
+    def to_json(self, *args: Any, **kwargs: Any) -> str:
         """Convert this document to JSON.
 
         :param use_db_field: Serialize field names as they appear in
@@ -458,7 +462,7 @@ class BaseDocument:
         return json_util.dumps(self.to_mongo(use_db_field), *args, **kwargs)
 
     @classmethod
-    def from_json(cls, json_data, created=False, **kwargs):
+    def from_json(cls, json_data: str, created: bool = False, **kwargs: Any) -> Self:
         """Converts json data to a Document instance
 
         :param str json_data: The json data to load into the Document
@@ -683,7 +687,7 @@ class BaseDocument:
                 self._nestable_types_changed_fields(changed_fields, key, data)
         return changed_fields
 
-    def _delta(self):
+    def _delta(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Returns the delta (set, unset) of the changes for a document.
         Gets any values that have been explicitly changed.
         """
@@ -767,15 +771,17 @@ class BaseDocument:
         return set_data, unset_data
 
     @classmethod
-    def _get_collection_name(cls):
+    def _get_collection_name(cls) -> Optional[str]:
         """Return the collection name for this class. None for abstract
         class.
         """
         return cls._meta.get("collection", None)
 
     @classmethod
-    def _from_son(cls, son, _auto_dereference=True, created=False):
-        """Create an instance of a Document (subclass) from a PyMongo SON (dict)"""
+    def _from_son(
+        cls, son: Dict[str, Any], _auto_dereference: bool = True, created: bool = False
+    ) -> Self:
+        """Create an instance of a Document (subclass) from a PyMong o SON (dict)"""
         if son and not isinstance(son, dict):
             raise ValueError(
                 "The source SON object needs to be of type 'dict' but a '%s' was found"

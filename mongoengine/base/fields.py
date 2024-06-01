@@ -12,6 +12,7 @@ from mongoengine.base.datastructures import (
 )
 from mongoengine.common import _import_class
 from mongoengine.errors import DeprecatedError, ValidationError
+from typing import Any, Callable, Dict, Iterable, NoReturn, Optional, Union
 
 __all__ = ("BaseField", "ComplexBaseField", "ObjectIdField", "GeoJsonBaseField")
 
@@ -34,17 +35,17 @@ class BaseField:
 
     def __init__(
         self,
-        db_field=None,
-        required=False,
-        default=None,
-        unique=False,
-        unique_with=None,
-        primary_key=False,
-        validation=None,
-        choices=None,
-        null=False,
-        sparse=False,
-        **kwargs,
+        db_field: Optional[str] = None,
+        required: bool = False,
+        default: Union[Any, None, Callable[[], Any]] = None,
+        unique: bool = False,
+        unique_with: Union[str, Iterable[str], None] = None,
+        primary_key: bool = False,
+        validation: Optional[Callable[[Any], None]] = None,
+        choices: Any = None,
+        null: bool = False,
+        sparse: bool = False,
+        **kwargs: Any,
     ):
         """
         :param db_field: The database field to store this field in
@@ -120,7 +121,7 @@ class BaseField:
             self.creation_counter = BaseField.creation_counter
             BaseField.creation_counter += 1
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance: Any, owner: Any) -> Any:
         """Descriptor for retrieving a value from a field in a document."""
         if instance is None:
             # Document class being used rather than a document object
@@ -129,7 +130,7 @@ class BaseField:
         # Get value from document instance if available
         return instance._data.get(self.name)
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Any) -> None:
         """Descriptor for assigning a value to a field in a document."""
         # If setting to None and there is a default value provided for this
         # field, then set the value to the default value.
@@ -165,16 +166,21 @@ class BaseField:
 
         instance._data[self.name] = value
 
-    def error(self, message="", errors=None, field_name=None):
+    def error(
+        self,
+        message: str = "",
+        errors: Union[Dict[str, Any], None] = None,
+        field_name: Union[str, None] = None,
+    ) -> NoReturn:
         """Raise a ValidationError."""
         field_name = field_name if field_name else self.name
         raise ValidationError(message, errors=errors, field_name=field_name)
 
-    def to_python(self, value):
+    def to_python(self, value: Any) -> Any:
         """Convert a MongoDB-compatible type to a Python type."""
         return value
 
-    def to_mongo(self, value):
+    def to_mongo(self, value: Any) -> Any:
         """Convert a Python type to a MongoDB-compatible type."""
         return self.to_python(value)
 
@@ -190,13 +196,13 @@ class BaseField:
 
         return self.to_mongo(value, **ex_vars)
 
-    def prepare_query_value(self, op, value):
+    def prepare_query_value(self, op: str, value: Any) -> Any:
         """Prepare a value that is being used in a query for PyMongo."""
         if op in UPDATE_OPERATORS:
             self.validate(value)
         return value
 
-    def validate(self, value, clean=True):
+    def validate(self, value: Any, clean: bool = True) -> None:
         """Perform validation on a value."""
         pass
 

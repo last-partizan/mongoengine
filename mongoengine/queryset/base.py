@@ -1,16 +1,36 @@
+from __future__ import annotations
+
 import copy
 import itertools
 import re
 import warnings
 from collections.abc import Mapping
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import pymongo
 import pymongo.errors
 from bson import SON, json_util
 from bson.code import Code
-from pymongo.collection import ReturnDocument
+from pymongo.collation import Collation
+from pymongo.collection import Collection, ReturnDocument
 from pymongo.common import validate_read_preference
 from pymongo.read_concern import ReadConcern
+from pymongo.read_preferences import _ServerMode
+from typing_extensions import Literal, Self, TypedDict
 
 from mongoengine import signals
 from mongoengine.base import get_document
@@ -37,7 +57,13 @@ from mongoengine.queryset import transform
 from mongoengine.queryset.field_list import QueryFieldList
 from mongoengine.queryset.visitor import Q, QNode
 
+if TYPE_CHECKING:
+    from mongoengine.document import Document
+
 __all__ = ("BaseQuerySet", "DO_NOTHING", "NULLIFY", "CASCADE", "DENY", "PULL")
+
+_T = TypeVar("_T", bound="Document")
+_U = TypeVar("_U", bound="BaseQuerySet[Any]")
 
 # Delete rules
 DO_NOTHING = 0
@@ -47,12 +73,12 @@ DENY = 3
 PULL = 4
 
 
-class BaseQuerySet:
+class BaseQuerySet(Generic[_T]):
     """A set of results returned from a query. Wraps a MongoDB cursor,
     providing :class:`~mongoengine.Document` objects as the results.
     """
 
-    def __init__(self, document, collection):
+    def __init__(self, document: Type[_T], collection: Collection[Any]) -> None:
         self._document = document
         self._collection_obj = collection
         self._mongo_query = None
@@ -162,7 +188,13 @@ class BaseQuerySet:
         # forse load cursor
         # self._cursor
 
-    def __getitem__(self, key):
+    @overload
+    def __getitem__(self, key: int) -> _T: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Self: ...
+
+    def __getitem__(self, key: Union[int, slice]) -> Union[_T, Self]:
         """Return a document instance corresponding to a given index if
         the key is an integer. If the key is a slice, translate its
         bounds into a skip and a limit, and return a cloned queryset
@@ -208,7 +240,7 @@ class BaseQuerySet:
 
         raise TypeError("Provide a slice or an integer index")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[_T]:
         raise NotImplementedError
 
     def _has_data(self):
@@ -222,11 +254,11 @@ class BaseQuerySet:
 
     # Core functions
 
-    def all(self):
+    def all(self) -> Self:
         """Returns a copy of the current QuerySet."""
         return self.__call__()
 
-    def filter(self, *q_objs, **query):
+    def filter(self, *q_objs: Q, **query: Any) -> Self:
         """An alias of :meth:`~mongoengine.queryset.QuerySet.__call__`"""
         return self.__call__(*q_objs, **query)
 
@@ -259,7 +291,7 @@ class BaseQuerySet:
 
         return queryset
 
-    def get(self, *q_objs, **query):
+    def get(self, *q_objs: Q, **query: Any) -> _T:
         """Retrieve the matching object raising
         :class:`~mongoengine.queryset.MultipleObjectsReturned` or
         `DocumentName.MultipleObjectsReturned` exception if multiple results
@@ -287,11 +319,11 @@ class BaseQuerySet:
             "2 or more items returned, instead of 1"
         )
 
-    def create(self, **kwargs):
+    def create(self, **kwargs: Any) -> _T:
         """Create new object. Returns the saved object instance."""
         return self._document(**kwargs).save(force_insert=True)
 
-    def first(self):
+    def first(self) -> Optional[_T]:
         """Retrieve the first object matching the query."""
         queryset = self.clone()
         if self._none or self._empty:
@@ -304,8 +336,12 @@ class BaseQuerySet:
         return result
 
     def insert(
-        self, doc_or_docs, load_bulk=True, write_concern=None, signal_kwargs=None
-    ):
+        self,
+        doc_or_docs: Iterable[_T] | _T,
+        load_bulk: bool = True,
+        write_concern: Optional[_ReadWriteConcern] = None,
+        signal_kwargs: Optional[Any] = None,
+    ) -> List[_T]:
         """bulk insert documents
 
         :param doc_or_docs: a document or list of documents to be inserted
@@ -397,7 +433,7 @@ class BaseQuerySet:
         )
         return results[0] if return_one else results
 
-    def count(self, with_limit_and_skip=False):
+    def count(self, with_limit_and_skip: bool = False) -> int:
         """Count the selected elements in the query.
 
         :param with_limit_and_skip (optional): take any :meth:`limit` or
@@ -660,8 +696,13 @@ class BaseQuerySet:
         )
 
     def modify(
-        self, upsert=False, full_response=False, remove=False, new=False, **update
-    ):
+        self,
+        upsert: bool = False,
+        full_response: bool = False,
+        remove: bool = False,
+        new: bool = False,
+        **update: Any,
+    ) -> Optional[Self]:
         """Update and return the updated document.
 
         Returns either the document before or after modification based on `new`
@@ -771,7 +812,7 @@ class BaseQuerySet:
 
         return doc_map
 
-    def none(self):
+    def none(self) -> Self:
         """Returns a queryset that never returns any objects and no query will be executed when accessing the results
         inspired by django none() https://docs.djangoproject.com/en/dev/ref/models/querysets/#none
         """
@@ -801,11 +842,11 @@ class BaseQuerySet:
 
         return self._clone_into(self.__class__(self._document, collection))
 
-    def clone(self):
+    def clone(self) -> Self:
         """Create a copy of the current queryset."""
         return self._clone_into(self.__class__(self._document, self._collection_obj))
 
-    def _clone_into(self, new_qs):
+    def _clone_into(self, new_qs: _U) -> _U:
         """Copy all the relevant properties of this queryset to
         a new queryset (which has to be an instance of
         :class:`~mongoengine.queryset.base.BaseQuerySet`).
@@ -864,7 +905,7 @@ class BaseQuerySet:
         queryset = self.clone()
         return queryset._dereference(queryset, max_depth=max_depth)
 
-    def limit(self, n):
+    def limit(self, n: int) -> Self:
         """Limit the number of returned documents to `n`. This may also be
         achieved using array-slicing syntax (e.g. ``User.objects[:5]``).
 
@@ -881,7 +922,7 @@ class BaseQuerySet:
 
         return queryset
 
-    def skip(self, n):
+    def skip(self, n: Optional[int]) -> Self:
         """Skip `n` documents before returning the results. This may also be
         achieved using array-slicing syntax (e.g. ``User.objects[5:]``).
 
@@ -896,7 +937,7 @@ class BaseQuerySet:
 
         return queryset
 
-    def hint(self, index=None):
+    def hint(self, index: Optional[_Hint] = None) -> Self:
         """Added 'hint' support, telling Mongo the proper index to use for the
         query.
 
@@ -916,7 +957,7 @@ class BaseQuerySet:
 
         return queryset
 
-    def collation(self, collation=None):
+    def collation(self, collation: Optional[_Collation] = None) -> Self:
         """
         Collation allows users to specify language-specific rules for string
         comparison, such as rules for lettercase and accent marks.
@@ -942,7 +983,7 @@ class BaseQuerySet:
 
         return queryset
 
-    def batch_size(self, size):
+    def batch_size(self, size: int) -> Self:
         """Limit the number of documents returned in a single batch (each
         batch requires a round trip to the server).
 
@@ -960,7 +1001,7 @@ class BaseQuerySet:
 
         return queryset
 
-    def distinct(self, field):
+    def distinct(self, field: str) -> List[Any]:
         """Return a list of distinct values for a given field.
 
         :param field: the field to select distinct values from
@@ -1018,7 +1059,7 @@ class BaseQuerySet:
 
         return distinct
 
-    def only(self, *fields):
+    def only(self, *fields: str) -> Self:
         """Load only a subset of this document's fields. ::
 
             post = BlogPost.objects(...).only('title', 'author.name')
@@ -1036,7 +1077,7 @@ class BaseQuerySet:
         fields = {f: QueryFieldList.ONLY for f in fields}
         return self.fields(True, **fields)
 
-    def exclude(self, *fields):
+    def exclude(self, *fields: str) -> Self:
         """Opposite to .only(), exclude some document's fields. ::
 
             post = BlogPost.objects(...).exclude('comments')
@@ -1054,7 +1095,7 @@ class BaseQuerySet:
         fields = {f: QueryFieldList.EXCLUDE for f in fields}
         return self.fields(**fields)
 
-    def fields(self, _only_called=False, **kwargs):
+    def fields(self, _only_called: bool = False, **kwargs: Any) -> Self:
         """Manipulate how you load this document's fields. Used by `.only()`
         and `.exclude()` to manipulate which fields to retrieve. If called
         directly, use a set of kwargs similar to the MongoDB projection
@@ -1112,7 +1153,7 @@ class BaseQuerySet:
 
         return queryset
 
-    def all_fields(self):
+    def all_fields(self) -> Self:
         """Include all fields. Reset all previously calls of .only() or
         .exclude(). ::
 
@@ -1124,7 +1165,7 @@ class BaseQuerySet:
         )
         return queryset
 
-    def order_by(self, *keys, __raw__=None):
+    def order_by(self, *keys: str, __raw__=None) -> Self:
         """Order the :class:`~mongoengine.queryset.QuerySet` by the given keys.
 
         The order may be specified by prepending each of the keys by a "+" or
@@ -1177,7 +1218,7 @@ class BaseQuerySet:
         queryset._cls_query = {}
         return queryset
 
-    def comment(self, text):
+    def comment(self, text: str) -> Self:
         """Add a comment to the query.
 
         See https://docs.mongodb.com/manual/reference/method/cursor.comment/#cursor.comment
@@ -1185,7 +1226,7 @@ class BaseQuerySet:
         """
         return self._chainable_method("comment", text)
 
-    def explain(self):
+    def explain(self) -> _ExplainCursor:
         """Return an explain plan record for the
         :class:`~mongoengine.queryset.QuerySet` cursor.
         """
@@ -1213,7 +1254,7 @@ class BaseQuerySet:
         queryset._allow_disk_use = enabled
         return queryset
 
-    def timeout(self, enabled):
+    def timeout(self, enabled: bool) -> Self:
         """Enable or disable the default mongod timeout when querying. (no_cursor_timeout option)
 
         :param enabled: whether or not the timeout is used
@@ -1222,7 +1263,7 @@ class BaseQuerySet:
         queryset._timeout = enabled
         return queryset
 
-    def read_preference(self, read_preference):
+    def read_preference(self, read_preference: _ServerMode) -> Self:
         """Change the read_preference when querying.
 
         :param read_preference: override ReplicaSetConnection-level
@@ -1250,7 +1291,7 @@ class BaseQuerySet:
         queryset._cursor_obj = None  # we need to re-create the cursor object whenever we apply read_concern
         return queryset
 
-    def scalar(self, *fields):
+    def scalar(self, *fields) -> List[Any]:
         """Instead of returning Document instances, return either a specific
         value or a tuple of values in order.
 
@@ -1273,11 +1314,11 @@ class BaseQuerySet:
 
         return queryset
 
-    def values_list(self, *fields):
+    def values_list(self, *fields: str) -> List[Any]:
         """An alias for scalar"""
         return self.scalar(*fields)
 
-    def as_pymongo(self):
+    def as_pymongo(self) -> BaseQuerySet[Dict[str, Any]]:  # type: ignore
         """Instead of returning Document instances, return raw values from
         pymongo.
 
@@ -1286,9 +1327,9 @@ class BaseQuerySet:
         """
         queryset = self.clone()
         queryset._as_pymongo = True
-        return queryset
+        return queryset  # type: ignore
 
-    def max_time_ms(self, ms):
+    def max_time_ms(self, ms: Optional[int]) -> Self:
         """Wait `ms` milliseconds before killing the query on the server
 
         :param ms: the number of milliseconds before killing the query on the server
@@ -1297,7 +1338,7 @@ class BaseQuerySet:
 
     # JSON Helpers
 
-    def to_json(self, *args, **kwargs):
+    def to_json(self, *args: Any, **kwargs: Any) -> str:
         """Converts a queryset to JSON"""
         if "json_options" not in kwargs:
             warnings.warn(
@@ -1311,7 +1352,7 @@ class BaseQuerySet:
             kwargs["json_options"] = LEGACY_JSON_OPTIONS
         return json_util.dumps(self.as_pymongo(), *args, **kwargs)
 
-    def from_json(self, json_data):
+    def from_json(self, json_data: str) -> List[_T]:
         """Converts json data to unsaved objects"""
         son_data = json_util.loads(json_data)
         return [self._document._from_son(data) for data in son_data]
@@ -1489,7 +1530,7 @@ class BaseQuerySet:
                 queryset._document, queryset._collection, doc["_id"], doc["value"]
             )
 
-    def exec_js(self, code, *fields, **options):
+    def exec_js(self, code: str, *fields: str, **options: Any) -> Self:
         """Execute a Javascript function on the server. A list of fields may be
         provided, which will be translated to their correct names and supplied
         as the arguments to the function. A few extra variables are added to
@@ -1544,7 +1585,7 @@ class BaseQuerySet:
         queryset._where_clause = where_clause
         return queryset
 
-    def sum(self, field):
+    def sum(self, field: str) -> float:
         """Sum over the values of the specified field.
 
         :param field: the field to sum over; use dot notation to refer to
@@ -1570,7 +1611,7 @@ class BaseQuerySet:
             return result[0]["total"]
         return 0
 
-    def average(self, field):
+    def average(self, field: str) -> Self:
         """Average over the values of the specified field.
 
         :param field: the field to average over; use dot notation to refer to
@@ -1621,7 +1662,7 @@ class BaseQuerySet:
 
     # Iterator helpers
 
-    def __next__(self):
+    def __next__(self) -> _T:
         """Wrap the result in a :class:`~mongoengine.Document` object."""
         if self._none or self._empty:
             raise StopIteration
@@ -1641,7 +1682,7 @@ class BaseQuerySet:
 
         return doc
 
-    def rewind(self):
+    def rewind(self) -> None:
         """Rewind the cursor to its unevaluated state."""
         self._iter = False
         self._cursor.rewind()
@@ -1768,7 +1809,7 @@ class BaseQuerySet:
         should_deref = not no_dereferencing_active_for_class(self._document)
         return should_deref and self.__auto_dereference
 
-    def no_dereference(self):
+    def no_dereference(self) -> Self:
         """Turn off any dereferencing for the results of this queryset."""
         queryset = self.clone()
         queryset.__auto_dereference = False
@@ -2016,3 +2057,41 @@ class BaseQuerySet:
         setattr(queryset, "_" + method_name, val)
 
         return queryset
+
+
+_Hint = Union[str, List[Tuple[str, Literal[-1, 1]]]]
+_ReadWriteConcern = Mapping[str, Union[str, int, bool]]
+_Collation = Union[Collation, Mapping[str, Union[bool, int, str, None]]]
+
+
+class _ExecutionStats(TypedDict):
+    allPlansExecution: List[Any]
+    executionStages: Dict[str, Any]
+    executionSuccess: bool
+    executionTimeMillis: int
+    nReturned: int
+    totalDocsExamined: int
+    totalKeysExamined: int
+
+
+class _QueryPlanner(TypedDict):
+    indexFilterSet: bool
+    namespace: str
+    parsedQuery: Dict[str, Any]
+    plannerVersion: int
+    rejectedPlans: List[Any]
+    winningPlan: Dict[str, Any]
+
+
+class _ServerInfo(TypedDict):
+    gitVersion: str
+    host: str
+    port: int
+    version: str
+
+
+class _ExplainCursor(TypedDict):
+    executionStats: _ExecutionStats
+    ok: float
+    queryPlanner: _QueryPlanner
+    serverInfo: _ServerInfo
