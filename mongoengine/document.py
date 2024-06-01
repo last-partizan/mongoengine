@@ -1,11 +1,14 @@
-import re
-from typing import Any, Dict, Mapping, Optional, TypeVar
+from __future__ import annotations
 
+import re
+from typing import Any, Dict, Mapping, Optional
+
+from bson import ObjectId
 import pymongo
 from bson.dbref import DBRef
 from pymongo.collection import Collection
 from pymongo.read_preferences import ReadPreference
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, Self, TypedDict
 
 from mongoengine import signals
 from mongoengine.base import (
@@ -29,6 +32,7 @@ from mongoengine.errors import (
     InvalidQueryError,
     SaveConditionError,
 )
+from mongoengine.fields import ObjectIdField
 from mongoengine.pymongo_support import list_collection_names
 from mongoengine.queryset import (
     NotUniqueError,
@@ -36,15 +40,7 @@ from mongoengine.queryset import (
     QuerySet,
     transform,
 )
-
-_U = TypeVar("_U", bound="Document")
-_MetaDict = Mapping[str, Any]
-
-class _UnderMetaDict(TypedDict):
-    id_field: NotRequired[str]
-    strict: bool
-    collection: str
-
+from mongoengine.queryset.manager import QuerySetManager
 
 __all__ = (
     "Document",
@@ -187,6 +183,8 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
 
     __slots__ = ("__objects",)
 
+    id: ObjectIdField[ObjectId, ObjectId]
+    objects: QuerySetManager[QuerySet[Self]]
     meta: _MetaDict
     _meta: _UnderMetaDict
     _fields: Dict[str, Any]
@@ -1133,3 +1131,11 @@ class MapReduceDocument:
             self._key_object = self._document.objects.with_id(self.key)
             return self._key_object
         return self._key_object
+
+
+_MetaDict = Mapping[str, Any]
+
+class _UnderMetaDict(TypedDict):
+    id_field: NotRequired[str]
+    strict: bool
+    collection: str
