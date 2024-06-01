@@ -885,6 +885,11 @@ class EmbeddedDocumentField(Generic[_ST, _GT], BaseField):
     def __get__(
         self: EmbeddedDocumentField[Any, _GT], instance: Any, owner: Any
     ) -> _GT: ...
+    def __init__(
+        self,
+        document_type: Type[_T] | str,
+        **kwargs: Any,
+    ) -> None: ...
 
 class DynamicField(BaseField): ...
 
