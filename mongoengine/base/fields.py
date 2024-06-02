@@ -1,5 +1,17 @@
 import operator
 import weakref
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    NoReturn,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 import pymongo
 from bson import SON, DBRef, ObjectId
@@ -12,10 +24,10 @@ from mongoengine.base.datastructures import (
 )
 from mongoengine.common import _import_class
 from mongoengine.errors import DeprecatedError, ValidationError
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Iterable, NoReturn, Optional, TypeVar, Union
 
-if TYPE_CHECKING
+if TYPE_CHECKING:
     from mongoengine.document import Document
+
 
 __all__ = ("BaseField", "ComplexBaseField", "ObjectIdField", "GeoJsonBaseField")
 

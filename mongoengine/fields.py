@@ -1,6 +1,5 @@
 # pyright: reportIncompatibleMethodOverride=warning
 from __future__ import annotations
-
 import decimal
 import inspect
 import itertools
@@ -14,12 +13,14 @@ from operator import itemgetter
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Dict,
+    Generic,
+    Iterable,
     List,
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 
@@ -50,25 +51,22 @@ from mongoengine.queryset.base import BaseQuerySet
 from mongoengine.queryset.transform import STRING_OPERATORS
 
 if TYPE_CHECKING:
-    from io import BufferedRandom, BufferedReader
-
-    from gridfs.grid_file import GridOut
-    from PIL.Image import Image
+    from enum import Enum
 
 try:
-    import dateutil
+    import dateutil  # type: ignore[import-untyped]
 except ImportError:
     dateutil = None
 else:
-    import dateutil.parser
+    import dateutil.parser  # type: ignore[import-untyped]
 
 try:
     from PIL import Image, ImageOps
 
     LANCZOS = Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.ANTIALIAS  # type: ignore
 except ImportError:
-    Image = None
-    ImageOps = None
+    Image = None  # type: ignore[assignment]
+    ImageOps = None  # type: ignore[assignment]
 
 
 __all__ = (
@@ -119,12 +117,18 @@ __all__ = (
 )
 
 RECURSIVE_REFERENCE_CONSTANT = "self"
-
+_T = TypeVar("_T")
 
 class StringField(BaseField):
     """A unicode string field."""
 
-    def __init__(self, regex=None, max_length=None, min_length=None, **kwargs):
+    def __init__(
+        self,
+        regex: str | None = None,
+        max_length: int | None = None,
+        min_length: int | None = None,
+        **kwargs,
+    ) -> None:
         """
         :param regex: (optional) A string pattern that will be applied during validation
         :param max_length: (optional) A max length that will be applied during validation
@@ -207,7 +211,12 @@ class URLField(StringField):
     )
     _URL_SCHEMES = ["http", "https", "ftp", "ftps"]
 
-    def __init__(self, url_regex=None, schemes=None, **kwargs):
+    def __init__(
+        self,
+        url_regex: str | None = None,
+        schemes: Iterable[str] | None = None,
+        **kwargs,
+    ) -> None:
         """
         :param url_regex: (optional) Overwrite the default regex used for validation
         :param schemes: (optional) Overwrite the default URL schemes that are allowed
@@ -929,7 +938,7 @@ class DynamicField(BaseField):
             value.validate(clean=clean)
 
 
-class ListField(ComplexBaseField):
+class ListField(ComplexBaseField[_ST, _GT]):
     """A list field that wraps a standard field, allowing multiple instances
     of the field to be used as a list in the database.
 
@@ -944,7 +953,7 @@ class ListField(ComplexBaseField):
         kwargs.setdefault("default", lambda: [])
         super().__init__(field=field, **kwargs)
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance: Any, owner: Any) -> List[Dict[str, Any]] | Self:
         if instance is None:
             # Document class being used rather than a document object
             return self
@@ -993,7 +1002,10 @@ class ListField(ComplexBaseField):
         return super().prepare_query_value(op, value)
 
 
-class EmbeddedDocumentListField(ListField):
+class EmbeddedDocumentListField(
+    ListField,
+    Generic[_T],
+):
     """A :class:`~mongoengine.ListField` designed specially to hold a list of
     embedded documents to provide additional query helpers.
 
@@ -1055,7 +1067,10 @@ def key_starts_with_dollar(d):
             return True
 
 
-class DictField(ComplexBaseField):
+class DictField(
+    ComplexBaseField,
+    Generic[_T],
+):
     """A dictionary field that wraps a standard Python dictionary. This is
     similar to an embedded document, but the structure is not defined.
 
@@ -1164,8 +1179,12 @@ class ReferenceField(BaseField):
     """
 
     def __init__(
-        self, document_type, dbref=False, reverse_delete_rule=DO_NOTHING, **kwargs
-    ):
+        self,
+        document_type: Type[_T],
+        dbref: bool = False,
+        reverse_delete_rule=DO_NOTHING,
+        **kwargs,
+    ) -> None:
         """Initialises the Reference Field.
 
         :param document_type: The type of Document that will be referenced
@@ -1210,7 +1229,7 @@ class ReferenceField(BaseField):
 
         return ref_cls._from_son(dereferenced_son)
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance: Any, owner: Any) -> _GT:
         """Descriptor to allow lazy dereferencing."""
         if instance is None:
             # Document class being used rather than a document object
@@ -1653,7 +1672,7 @@ class EnumField(BaseField):
             status = EnumField(Status, choices=[Status.NEW, Status.DONE])
     """
 
-    def __init__(self, enum: Union[Type[Status], Type[Color]], **kwargs):
+    def __init__(self, enum: type[Enum], **kwargs):
         self._enum_cls = enum
         if kwargs.get("choices"):
             invalid_choices = []
@@ -1683,7 +1702,7 @@ class EnumField(BaseField):
                 return value
         return value
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: _ST) -> None:
         return super().__set__(instance, self.to_python(value))
 
     def to_mongo(self, value):
