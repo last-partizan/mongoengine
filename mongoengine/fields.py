@@ -1,4 +1,6 @@
-import datetime
+# pyright: reportIncompatibleMethodOverride=warning
+from __future__ import annotations
+
 import decimal
 import inspect
 import itertools
@@ -6,22 +8,27 @@ import re
 import socket
 import time
 import uuid
+from datetime import datetime
 from io import BytesIO
 from operator import itemgetter
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
-import gridfs
 import pymongo
 from bson import SON, Binary, DBRef, ObjectId
 from bson.decimal128 import Decimal128, create_decimal128_context
 from bson.int64 import Int64
 from pymongo import ReturnDocument
-
-try:
-    import dateutil
-except ImportError:
-    dateutil = None
-else:
-    import dateutil.parser
+from typing_extensions import Self
 
 from mongoengine.base import (
     BaseDocument,
@@ -32,23 +39,33 @@ from mongoengine.base import (
     ObjectIdField,
     get_document,
 )
+from mongoengine.base.fields import _GT, _ST
 from mongoengine.base.utils import LazyRegexCompiler
 from mongoengine.common import _import_class
 from mongoengine.connection import DEFAULT_CONNECTION_NAME, get_db
 from mongoengine.document import Document, EmbeddedDocument
-from mongoengine.errors import (
-    DoesNotExist,
-    InvalidQueryError,
-    ValidationError,
-)
+from mongoengine.errors import DoesNotExist, InvalidQueryError, ValidationError
 from mongoengine.queryset import DO_NOTHING
 from mongoengine.queryset.base import BaseQuerySet
 from mongoengine.queryset.transform import STRING_OPERATORS
 
+if TYPE_CHECKING:
+    from io import BufferedRandom, BufferedReader
+
+    from gridfs.grid_file import GridOut
+    from PIL.Image import Image
+
+try:
+    import dateutil
+except ImportError:
+    dateutil = None
+else:
+    import dateutil.parser
+
 try:
     from PIL import Image, ImageOps
 
-    LANCZOS = Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.ANTIALIAS
+    LANCZOS = Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.ANTIALIAS  # type: ignore
 except ImportError:
     Image = None
     ImageOps = None
@@ -242,11 +259,11 @@ class EmailField(StringField):
 
     def __init__(
         self,
-        domain_whitelist=None,
-        allow_utf8_user=False,
-        allow_ip_domain=False,
-        *args,
-        **kwargs,
+        domain_whitelist: Optional[List[str]] = None,
+        allow_utf8_user: bool = False,
+        allow_ip_domain: bool = False,
+        *args: Any,
+        **kwargs: Any,
     ):
         """
         :param domain_whitelist: (optional) list of valid domain names applied during validation
@@ -323,7 +340,12 @@ class EmailField(StringField):
 class IntField(BaseField):
     """32-bit integer field."""
 
-    def __init__(self, min_value=None, max_value=None, **kwargs):
+    def __init__(
+        self,
+        min_value: Optional[int] = None,
+        max_value: Optional[int] = None,
+        **kwargs: Any,
+    ):
         """
         :param min_value: (optional) A min value that will be applied during validation
         :param max_value: (optional) A max value that will be applied during validation
@@ -368,7 +390,12 @@ class LongField(IntField):
 class FloatField(BaseField):
     """Floating point number field."""
 
-    def __init__(self, min_value=None, max_value=None, **kwargs):
+    def __init__(
+        self,
+        min_value: Union[float, int, None] = None,
+        max_value: Union[float, int, None] = None,
+        **kwargs,
+    ):
         """
         :param min_value: (optional) A min value that will be applied during validation
         :param max_value: (optional) A max value that will be applied during validation
@@ -417,11 +444,11 @@ class DecimalField(BaseField):
 
     def __init__(
         self,
-        min_value=None,
-        max_value=None,
-        force_string=False,
-        precision=2,
-        rounding=decimal.ROUND_HALF_UP,
+        min_value: Optional[decimal.Decimal | int] = None,
+        max_value: Optional[decimal.Decimal | int] = None,
+        force_string: bool = False,
+        precision: int = 2,
+        rounding: str = decimal.ROUND_HALF_UP,
         **kwargs,
     ):
         """
@@ -626,7 +653,7 @@ class ComplexDateTimeField(StringField):
     Note: To default the field to the current datetime, use: DateTimeField(default=datetime.utcnow)
     """
 
-    def __init__(self, separator=",", **kwargs):
+    def __init__(self, separator: str = ",", **kwargs):
         """
         :param separator: Allows to customize the separator used for storage (default ``,``)
         :param kwargs: Keyword arguments passed into the parent :class:`~mongoengine.StringField`
@@ -706,7 +733,9 @@ class EmbeddedDocumentField(BaseField):
     Only valid values are subclasses of :class:`~mongoengine.EmbeddedDocument`.
     """
 
-    def __init__(self, document_type, **kwargs):
+    def __init__(
+        self, document_type: Union[Type[Any], Type[dict], str], **kwargs
+    ):
         # XXX ValidationError raised outside of the "validate" method.
         if not (
             isinstance(document_type, str)
@@ -721,7 +750,7 @@ class EmbeddedDocumentField(BaseField):
         super().__init__(**kwargs)
 
     @property
-    def document_type(self):
+    def document_type(self) -> Type[Any]:
         if isinstance(self.document_type_obj, str):
             if self.document_type_obj == RECURSIVE_REFERENCE_CONSTANT:
                 resolved_document_type = self.owner_document
@@ -1034,13 +1063,13 @@ class DictField(ComplexBaseField):
         Required means it cannot be empty - as the default for DictFields is {}
     """
 
-    def __init__(self, field=None, *args, **kwargs):
+    def __init__(self, field: Optional[Any] = None, *args, **kwargs):
         self._auto_dereference = False
 
         kwargs.setdefault("default", lambda: {})
         super().__init__(*args, field=field, **kwargs)
 
-    def validate(self, value):
+    def validate(self, value: Any):
         """Make sure that a list of valid fields is being used."""
         if not isinstance(value, dict):
             self.error("Only dictionaries may be used in a DictField")
@@ -1273,7 +1302,13 @@ class ReferenceField(BaseField):
 class CachedReferenceField(BaseField):
     """A referencefield with cache fields to purpose pseudo-joins"""
 
-    def __init__(self, document_type, fields=None, auto_sync=True, **kwargs):
+    def __init__(
+        self,
+        document_type: Union[str, int],
+        fields: Optional[Tuple[str]] = None,
+        auto_sync: bool = True,
+        **kwargs,
+    ):
         """Initialises the Cached Reference Field.
 
         :param document_type: The type of Document that will be referenced
@@ -1554,7 +1589,7 @@ class GenericReferenceField(BaseField):
 class BinaryField(BaseField):
     """A binary data field."""
 
-    def __init__(self, max_bytes=None, **kwargs):
+    def __init__(self, max_bytes: Optional[int] = None, **kwargs):
         self.max_bytes = max_bytes
         super().__init__(**kwargs)
 
@@ -1618,7 +1653,7 @@ class EnumField(BaseField):
             status = EnumField(Status, choices=[Status.NEW, Status.DONE])
     """
 
-    def __init__(self, enum, **kwargs):
+    def __init__(self, enum: Union[Type[Status], Type[Color]], **kwargs):
         self._enum_cls = enum
         if kwargs.get("choices"):
             invalid_choices = []
@@ -1673,11 +1708,11 @@ class GridFSProxy:
 
     def __init__(
         self,
-        grid_id=None,
-        key=None,
-        instance=None,
-        db_alias=DEFAULT_CONNECTION_NAME,
-        collection_name="fs",
+        grid_id: Optional[ObjectId] = None,
+        key: Optional[str] = None,
+        instance: Optional[Union[NewDocumentPickleTest, PickleTest]] = None,
+        db_alias: str = DEFAULT_CONNECTION_NAME,
+        collection_name: str = "fs",
     ):
         self.grid_id = grid_id  # Store GridFS id for file
         self.key = key
@@ -1834,13 +1869,20 @@ class FileField(BaseField):
     proxy_class = GridFSProxy
 
     def __init__(
-        self, db_alias=DEFAULT_CONNECTION_NAME, collection_name="fs", **kwargs
+        self,
+        db_alias: str = DEFAULT_CONNECTION_NAME,
+        collection_name: str = "fs",
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.collection_name = collection_name
         self.db_alias = db_alias
 
-    def __get__(self, instance, owner):
+    def __get__(
+        self,
+        instance: Any,
+        owner: Any,
+    ) -> GridFSProxy | Self:
         if instance is None:
             return self
 
@@ -1855,7 +1897,9 @@ class FileField(BaseField):
             grid_file.instance = instance
         return grid_file
 
-    def __set__(self, instance, value):
+    def __set__(
+        self, instance: Any, value: GridFSProxy
+    ):
         key = self.name
         if (
             hasattr(value, "read") and not isinstance(value, GridFSProxy)
@@ -1877,7 +1921,13 @@ class FileField(BaseField):
 
         instance._mark_as_changed(key)
 
-    def get_proxy_obj(self, key, instance, db_alias=None, collection_name=None):
+    def get_proxy_obj(
+        self,
+        key: str,
+        instance: Any,
+        db_alias: str | None = None,
+        collection_name: str | None = None,
+    ) -> GridFSProxy:
         if db_alias is None:
             db_alias = self.db_alias
         if collection_name is None:
@@ -2046,7 +2096,11 @@ class ImageField(FileField):
     proxy_class = ImageGridFsProxy
 
     def __init__(
-        self, size=None, thumbnail_size=None, collection_name="images", **kwargs
+        self,
+        size: Optional[Tuple[int, int, bool]] = None,
+        thumbnail_size: Optional[Tuple[int, int, bool]] = None,
+        collection_name: str = "images",
+        **kwargs,
     ):
         if not Image:
             raise ImproperlyConfigured("PIL library was not found")
@@ -2256,7 +2310,7 @@ class GeoPointField(BaseField):
 
     _geo_index = pymongo.GEO2D
 
-    def validate(self, value):
+    def validate(self, value: Any):
         """Make sure that a geo-value is of type (x, y)"""
         if not isinstance(value, (list, tuple)):
             self.error("GeoPointField can only accept tuples or lists of (x, y)")
@@ -2391,7 +2445,7 @@ class MultiPolygonField(GeoJsonBaseField):
     _type = "MultiPolygon"
 
 
-class LazyReferenceField(BaseField):
+class LazyReferenceField(BaseField[_ST, _GT]):
     """A really lazy reference to a document.
     Unlike the :class:`~mongoengine.fields.ReferenceField` it will
     **not** be automatically (lazily) dereferenced on access.
@@ -2402,10 +2456,10 @@ class LazyReferenceField(BaseField):
 
     def __init__(
         self,
-        document_type,
-        passthrough=False,
-        dbref=False,
-        reverse_delete_rule=DO_NOTHING,
+        document_type: Union[Type[EmbeddedDocument], str],
+        passthrough: bool = False,
+        dbref: bool = False,
+        reverse_delete_rule: int = DO_NOTHING,
         **kwargs,
     ):
         """Initialises the Reference Field.
@@ -2435,7 +2489,7 @@ class LazyReferenceField(BaseField):
         super().__init__(**kwargs)
 
     @property
-    def document_type(self):
+    def document_type(self) -> type[Document]:
         if isinstance(self.document_type_obj, str):
             if self.document_type_obj == RECURSIVE_REFERENCE_CONSTANT:
                 self.document_type_obj = self.owner_document
@@ -2443,7 +2497,16 @@ class LazyReferenceField(BaseField):
                 self.document_type_obj = get_document(self.document_type_obj)
         return self.document_type_obj
 
-    def build_lazyref(self, value):
+    def build_lazyref(
+        self,
+        value: Optional[
+            Union[
+                ObjectId,
+                DBRef,
+                LazyReference,
+            ]
+        ],
+    ) -> Optional[LazyReference]:
         if isinstance(value, LazyReference):
             if value.passthrough != self.passthrough:
                 value = LazyReference(
@@ -2638,7 +2701,9 @@ class Decimal128Field(BaseField):
 
     DECIMAL_CONTEXT = create_decimal128_context()
 
-    def __init__(self, min_value=None, max_value=None, **kwargs):
+    def __init__(
+        self, min_value: Optional[int] = None, max_value: Optional[int] = None, **kwargs
+    ):
         self.min_value = min_value
         self.max_value = max_value
         super().__init__(**kwargs)

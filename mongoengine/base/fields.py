@@ -12,9 +12,13 @@ from mongoengine.base.datastructures import (
 )
 from mongoengine.common import _import_class
 from mongoengine.errors import DeprecatedError, ValidationError
-from typing import Any, Callable, Dict, Generic, Iterable, NoReturn, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Iterable, NoReturn, Optional, TypeVar, Union
+
+if TYPE_CHECKING
+    from mongoengine.document import Document
 
 __all__ = ("BaseField", "ComplexBaseField", "ObjectIdField", "GeoJsonBaseField")
+
 _ST = TypeVar("_ST")
 _GT = TypeVar("_GT")
 
@@ -23,7 +27,7 @@ class BaseField(Generic[_ST, _GT]):
     may be added to subclasses of `Document` to define a document's schema.
     """
 
-    name = None  # set in TopLevelDocumentMetaclass
+    name: str = None  # type: ignore set in TopLevelDocumentMetaclass
     _geo_index = False
     _auto_gen = False  # Call `generate` to generate a value
     _auto_dereference = True
@@ -255,7 +259,7 @@ class BaseField(Generic[_ST, _GT]):
         self.validate(value, **kwargs)
 
     @property
-    def owner_document(self):
+    def owner_document(self) -> type[Document]:
         return self._owner_document
 
     def _set_owner_document(self, owner_document):
