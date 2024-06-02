@@ -24,12 +24,11 @@ from uuid import UUID
 
 from bson.objectid import ObjectId
 from mongoengine.base import BaseField, ComplexBaseField
-from mongoengine.base.fields import _ST, _GT
+from mongoengine.base.fields import _ST, _GT, _F
 from mongoengine.document import Document
 from typing_extensions import Literal, TypeAlias
 
 _T = TypeVar("_T")
-_F = TypeVar("_F", bound=BaseField)
 _Choice: TypeAlias = str | tuple[str, str]
 
 class StringField(BaseField[_ST, _GT]):
@@ -40,112 +39,6 @@ class StringField(BaseField[_ST, _GT]):
         min_length: int | None = None,
         **kwargs: Any,
     ) -> None: ...
-    @overload
-    def __new__(
-        cls,
-        *,
-        regex: Optional[str] = ...,
-        max_length: Optional[int] = ...,
-        min_length: Optional[int] = ...,
-        db_field: str = ...,
-        name: Optional[str] = ...,
-        required: Literal[False] = ...,
-        default: None = ...,
-        unique: bool = ...,
-        unique_with: Union[str, Iterable[str]] = ...,
-        primary_key: Literal[False] = ...,
-        choices: Optional[Iterable[_Choice]] = ...,
-        null: bool = ...,
-        verbose_name: Optional[str] = ...,
-        help_text: Optional[str] = ...,
-        **kwargs: Any,
-    ) -> StringField[Optional[str], Optional[str]]: ...
-    # StringField(default="foo")
-    @overload
-    def __new__(
-        cls,
-        *,
-        regex: Optional[str] = ...,
-        max_length: Optional[int] = ...,
-        min_length: Optional[int] = ...,
-        db_field: str = ...,
-        name: Optional[str] = ...,
-        required: Literal[False] = ...,
-        default: Union[str, Callable[[], str]],
-        unique: bool = ...,
-        unique_with: Union[str, Iterable[str]] = ...,
-        primary_key: Literal[False] = ...,
-        choices: Optional[Iterable[_Choice]] = ...,
-        null: bool = ...,
-        verbose_name: Optional[str] = ...,
-        help_text: Optional[str] = ...,
-        **kwargs: Any,
-    ) -> StringField[Optional[str], str]: ...
-    # StringField(required=True)
-    @overload
-    def __new__(
-        cls,
-        *,
-        regex: Optional[str] = ...,
-        max_length: Optional[int] = ...,
-        min_length: Optional[int] = ...,
-        db_field: str = ...,
-        name: Optional[str] = ...,
-        required: Literal[True],
-        default: None = ...,
-        unique: bool = ...,
-        unique_with: Union[str, Iterable[str]] = ...,
-        primary_key: Literal[False] = ...,
-        choices: Optional[Iterable[_Choice]] = ...,
-        null: bool = ...,
-        verbose_name: Optional[str] = ...,
-        help_text: Optional[str] = ...,
-        **kwargs: Any,
-    ) -> StringField[str, str]: ...
-    # StringField(required=True, default="foo")
-    @overload
-    def __new__(
-        cls,
-        *,
-        regex: Optional[str] = ...,
-        max_length: Optional[int] = ...,
-        min_length: Optional[int] = ...,
-        db_field: str = ...,
-        name: Optional[str] = ...,
-        required: Literal[True],
-        default: Union[str, Callable[[], str]],
-        unique: bool = ...,
-        unique_with: Union[str, Iterable[str]] = ...,
-        primary_key: Literal[False] = ...,
-        choices: Optional[Iterable[_Choice]] = ...,
-        null: bool = ...,
-        verbose_name: Optional[str] = ...,
-        help_text: Optional[str] = ...,
-        **kwargs: Any,
-    ) -> StringField[Optional[str], str]: ...
-    # StringField(primary_key=True)
-    @overload
-    def __new__(
-        cls,
-        *,
-        regex: Optional[str] = ...,
-        max_length: Optional[int] = ...,
-        min_length: Optional[int] = ...,
-        db_field: str = ...,
-        name: Optional[str] = ...,
-        required: bool = ...,
-        default: Union[str, Callable[[], str], None] = ...,
-        unique: bool = ...,
-        unique_with: Union[str, Iterable[str]] = ...,
-        primary_key: Literal[True],
-        choices: Optional[Iterable[_Choice]] = ...,
-        null: bool = ...,
-        verbose_name: Optional[str] = ...,
-        help_text: Optional[str] = ...,
-        **kwargs: Any,
-    ) -> StringField[str, str]: ...
-    def __set__(self, instance: Any, value: _ST) -> None: ...
-    def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
 class URLField(StringField[_ST, _GT]):
     def __init__(

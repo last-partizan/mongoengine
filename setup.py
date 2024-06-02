@@ -65,6 +65,9 @@ setup(
     download_url="https://github.com/MongoEngine/mongoengine/tarball/master",
     license="MIT",
     include_package_data=True,
+    package_data={
+        "mongoengine": ["py.typed"],
+    },
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     platforms=["any"],
