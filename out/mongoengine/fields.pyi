@@ -1,7 +1,6 @@
 from _typeshed import Incomplete
 from mongoengine.base import BaseField, ComplexBaseField, GeoJsonBaseField as GeoJsonBaseField, ObjectIdField as ObjectIdField
 
-__all__ = ['StringField', 'URLField', 'EmailField', 'IntField', 'LongField', 'FloatField', 'DecimalField', 'BooleanField', 'DateTimeField', 'DateField', 'ComplexDateTimeField', 'EmbeddedDocumentField', 'ObjectIdField', 'GenericEmbeddedDocumentField', 'DynamicField', 'ListField', 'SortedListField', 'EmbeddedDocumentListField', 'DictField', 'MapField', 'ReferenceField', 'CachedReferenceField', 'LazyReferenceField', 'GenericLazyReferenceField', 'GenericReferenceField', 'BinaryField', 'GridFSError', 'GridFSProxy', 'FileField', 'ImageGridFsProxy', 'ImproperlyConfigured', 'ImageField', 'GeoPointField', 'PointField', 'LineStringField', 'PolygonField', 'SequenceField', 'UUIDField', 'EnumField', 'MultiPointField', 'MultiLineStringField', 'MultiPolygonField', 'GeoJsonBaseField', 'Decimal128Field']
 
 class StringField(BaseField):
     regex: Incomplete
@@ -9,16 +8,6 @@ class StringField(BaseField):
     min_length: Incomplete
     def __init__(self, regex: str | None = None, max_length: int | None = None, min_length: int | None = None, **kwargs) -> None:
         ...
-    def to_python(self, value): ...
-    def validate(self, value) -> None: ...
-    def lookup_member(self, member_name) -> None: ...
-    def prepare_query_value(self, op, value): ...
-
-class URLField(StringField):
-    url_regex: Incomplete
-    schemes: Incomplete
-    def __init__(self, url_regex: Incomplete | None = None, schemes: Incomplete | None = None, **kwargs) -> None: ...
-    def validate(self, value) -> None: ...
 
 class EmailField(StringField):
     USER_REGEX: Incomplete

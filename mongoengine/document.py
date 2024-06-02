@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, TYPE_CHECKING
 
-from bson import ObjectId
 import pymongo
 from bson.dbref import DBRef
-from pymongo.collection import Collection
 from pymongo.read_preferences import ReadPreference
 from typing_extensions import NotRequired, Self, TypedDict
 
@@ -32,7 +30,6 @@ from mongoengine.errors import (
     InvalidQueryError,
     SaveConditionError,
 )
-from mongoengine.fields import ObjectIdField
 from mongoengine.pymongo_support import list_collection_names
 from mongoengine.queryset import (
     NotUniqueError,
@@ -40,7 +37,12 @@ from mongoengine.queryset import (
     QuerySet,
     transform,
 )
-from mongoengine.queryset.manager import QuerySetManager
+
+if TYPE_CHECKING:
+    from mongoengine.fields import ObjectIdField
+    from bson import ObjectId
+    from mongoengine.queryset.manager import QuerySetManager
+    from pymongo.collection import Collection
 
 __all__ = (
     "Document",

@@ -379,7 +379,7 @@ class TestTransform(unittest.TestCase):
             meta = {"strict": False}
 
         class Shop(Document):
-            drinks = EmbeddedDocumentListField(Drink)
+            drinks = fields.EmbeddedDocumentListField(Drink)
 
         Shop.drop_collection()
         drinks = [Drink(id="drink_1"), Drink(id="drink_2")]

@@ -29,7 +29,6 @@ from pymongo.collation import Collation
 from pymongo.collection import Collection, ReturnDocument
 from pymongo.common import validate_read_preference
 from pymongo.read_concern import ReadConcern
-from pymongo.read_preferences import _ServerMode
 from typing_extensions import Literal, Self, TypedDict
 
 from mongoengine import signals
@@ -58,6 +57,7 @@ from mongoengine.queryset.field_list import QueryFieldList
 from mongoengine.queryset.visitor import Q, QNode
 
 if TYPE_CHECKING:
+    from pymongo.read_preferences import _ServerMode
     from mongoengine.document import Document
 
 __all__ = ("BaseQuerySet", "DO_NOTHING", "NULLIFY", "CASCADE", "DENY", "PULL")
