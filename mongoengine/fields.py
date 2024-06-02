@@ -1,5 +1,7 @@
 # pyright: reportIncompatibleMethodOverride=warning
+# mypy: disable-error-code="override,misc"
 from __future__ import annotations
+
 import decimal
 import inspect
 import itertools
@@ -24,6 +26,7 @@ from typing import (
     Union,
 )
 
+import gridfs
 import pymongo
 from bson import SON, Binary, DBRef, ObjectId
 from bson.decimal128 import Decimal128, create_decimal128_context
@@ -1067,10 +1070,7 @@ def key_starts_with_dollar(d):
             return True
 
 
-class DictField(
-    ComplexBaseField,
-    Generic[_T],
-):
+class DictField(ComplexBaseField[_ST, _GT]):
     """A dictionary field that wraps a standard Python dictionary. This is
     similar to an embedded document, but the structure is not defined.
 
@@ -1138,7 +1138,7 @@ class MapField(DictField):
         super().__init__(field=field, *args, **kwargs)
 
 
-class ReferenceField(BaseField):
+class ReferenceField(BaseField[_ST, _GT]):
     """A reference to a document that will be automatically dereferenced on
     access (lazily).
 
@@ -1229,7 +1229,7 @@ class ReferenceField(BaseField):
 
         return ref_cls._from_son(dereferenced_son)
 
-    def __get__(self, instance: Any, owner: Any) -> _GT:
+    def __get__(self, instance: Any, owner: Any) -> _GT | Self:
         """Descriptor to allow lazy dereferencing."""
         if instance is None:
             # Document class being used rather than a document object
@@ -1324,7 +1324,7 @@ class CachedReferenceField(BaseField):
     def __init__(
         self,
         document_type: Union[str, int],
-        fields: Optional[Tuple[str]] = None,
+        fields: Optional[Iterable[str]] = None,
         auto_sync: bool = True,
         **kwargs,
     ):
@@ -1729,7 +1729,7 @@ class GridFSProxy:
         self,
         grid_id: Optional[ObjectId] = None,
         key: Optional[str] = None,
-        instance: Optional[Union[NewDocumentPickleTest, PickleTest]] = None,
+        instance: Optional[Any] = None,
         db_alias: str = DEFAULT_CONNECTION_NAME,
         collection_name: str = "fs",
     ):
@@ -2508,7 +2508,7 @@ class LazyReferenceField(BaseField[_ST, _GT]):
         super().__init__(**kwargs)
 
     @property
-    def document_type(self) -> type[Document]:
+    def document_type(self):
         if isinstance(self.document_type_obj, str):
             if self.document_type_obj == RECURSIVE_REFERENCE_CONSTANT:
                 self.document_type_obj = self.owner_document
@@ -2516,16 +2516,7 @@ class LazyReferenceField(BaseField[_ST, _GT]):
                 self.document_type_obj = get_document(self.document_type_obj)
         return self.document_type_obj
 
-    def build_lazyref(
-        self,
-        value: Optional[
-            Union[
-                ObjectId,
-                DBRef,
-                LazyReference,
-            ]
-        ],
-    ) -> Optional[LazyReference]:
+    def build_lazyref(self, value):
         if isinstance(value, LazyReference):
             if value.passthrough != self.passthrough:
                 value = LazyReference(

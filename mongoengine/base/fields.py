@@ -34,13 +34,14 @@ __all__ = ("BaseField", "ComplexBaseField", "ObjectIdField", "GeoJsonBaseField")
 _ST = TypeVar("_ST")
 _GT = TypeVar("_GT")
 
+
 class BaseField(Generic[_ST, _GT]):
     """A base class for fields in a MongoDB document. Instances of this class
     may be added to subclasses of `Document` to define a document's schema.
     """
 
     name: str = None  # type: ignore set in TopLevelDocumentMetaclass
-    _geo_index = False
+    _geo_index: bool | str = False
     _auto_gen = False  # Call `generate` to generate a value
     _auto_dereference = True
 
