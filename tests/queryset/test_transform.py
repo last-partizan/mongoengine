@@ -1,3 +1,4 @@
+# pyright: reportOptionalMemberAccess=false
 import unittest
 
 import pytest

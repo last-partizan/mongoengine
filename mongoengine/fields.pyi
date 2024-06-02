@@ -24,16 +24,14 @@ from uuid import UUID
 
 from bson.objectid import ObjectId
 from mongoengine.base import BaseField, ComplexBaseField
+from mongoengine.base.fields import _ST, _GT
 from mongoengine.document import Document
 from typing_extensions import Literal
 
 _T = TypeVar("_T")
 _F = TypeVar("_F", bound=BaseField)
 
-_ST = TypeVar("_ST")
-_GT = TypeVar("_GT")
-
-class ObjectIdField(Generic[_ST, _GT], BaseField):
+class ObjectIdField(BaseField[_ST, _GT]):
     # ObjectIdField()
     @overload
     def __new__(
@@ -127,7 +125,14 @@ class ObjectIdField(Generic[_ST, _GT], BaseField):
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
-class StringField(Generic[_ST, _GT], BaseField):
+class StringField(BaseField[_ST, _GT]):
+    def __init__(
+        self,
+        regex: str | None = None,
+        max_length: int | None = None,
+        min_length: int | None = None,
+        **kwargs: Any,
+    ) -> None: ...
     # StringField()
     @overload
     def __new__(
@@ -355,7 +360,7 @@ class EmailField(StringField[_ST, _GT]):
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
-class IntField(Generic[_ST, _GT], BaseField):
+class IntField(BaseField[_ST, _GT]):
     @overload
     def __new__(
         cls,
@@ -454,7 +459,7 @@ class IntField(Generic[_ST, _GT], BaseField):
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
-class FloatField(Generic[_ST, _GT], BaseField):
+class FloatField(BaseField[_ST, _GT]):
     @overload
     def __new__(
         cls,
@@ -553,7 +558,7 @@ class FloatField(Generic[_ST, _GT], BaseField):
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
-class DecimalField(Generic[_ST, _GT], BaseField):
+class DecimalField(BaseField[_ST, _GT]):
     @overload
     def __new__(
         cls,
@@ -667,7 +672,7 @@ class DecimalField(Generic[_ST, _GT], BaseField):
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
-class BooleanField(Generic[_ST, _GT], BaseField):
+class BooleanField(BaseField[_ST, _GT]):
     @overload
     def __new__(
         cls,
@@ -756,7 +761,7 @@ class BooleanField(Generic[_ST, _GT], BaseField):
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
-class DateTimeField(Generic[_ST, _GT], BaseField):
+class DateTimeField(BaseField[_ST, _GT]):
     @overload
     def __new__(
         cls,
@@ -845,7 +850,12 @@ class DateTimeField(Generic[_ST, _GT], BaseField):
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
-class EmbeddedDocumentField(Generic[_ST, _GT], BaseField):
+class EmbeddedDocumentField(BaseField[_ST, _GT]):
+    def __init__(
+        self,
+        document_type: Type[_T] | str,
+        **kwargs: Any,
+    ) -> None: ...
     @overload
     def __new__(
         cls,
@@ -885,15 +895,17 @@ class EmbeddedDocumentField(Generic[_ST, _GT], BaseField):
     def __get__(
         self: EmbeddedDocumentField[Any, _GT], instance: Any, owner: Any
     ) -> _GT: ...
-    def __init__(
-        self,
-        document_type: Type[_T] | str,
-        **kwargs: Any,
-    ) -> None: ...
 
 class DynamicField(BaseField): ...
 
-class ListField(Generic[_T], ComplexBaseField):
+class ListField(Generic[_T], ComplexBaseField[_T, _T]):
+    def __init__(
+        self,
+        field: BaseField | None = None,
+        max_length: int | None = None,
+        db_field: str | None = None,
+        **kwargs: Any,
+    ) -> None: ...
     # see: https://github.com/python/mypy/issues/4236#issuecomment-521628880
     def __new__(
         cls,
@@ -903,6 +915,7 @@ class ListField(Generic[_T], ComplexBaseField):
         verbose_name: str = ...,
         help_text: str = ...,
         null: bool = ...,
+        **kwargs: Any,
     ) -> ListField[_F]: ...
     def __getitem__(self, arg: Any) -> _T: ...
     def __iter__(self) -> Iterator[_T]: ...
@@ -931,7 +944,7 @@ class ListField(Generic[_T], ComplexBaseField):
         self: ListField[DictField[Any]], instance: Any, owner: Any
     ) -> List[Dict[str, Any]]: ...
 
-class DictField(Generic[_T], ComplexBaseField):
+class DictField(Generic[_T], ComplexBaseField[_T, _T]):
     # not sure we need the init method overloads
     @overload
     def __new__(  # type: ignore
@@ -1021,7 +1034,7 @@ class DictField(Generic[_T], ComplexBaseField):
     ) -> Dict[str, List[str]]: ...
     def __getitem__(self, arg: Any) -> _T: ...
 
-class EmbeddedDocumentListField(Generic[_T], BaseField):
+class EmbeddedDocumentListField(Generic[_T], BaseField[_T, _T]):
     def __new__(
         cls,
         document_type: Type[_T],
@@ -1035,7 +1048,7 @@ class EmbeddedDocumentListField(Generic[_T], BaseField):
     def __set__(self, instance: Any, value: List[_T]) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> List[_T]: ...
 
-class LazyReference(Generic[_T], BaseField):
+class LazyReference(Generic[_T], BaseField[_T, _T]):
     def __getitem__(self, arg: Any) -> LazyReference[_T]: ...
 
 class LazyReferenceField(BaseField):
@@ -1149,7 +1162,7 @@ class URLField(Generic[_ST, _GT], StringField[_ST, _GT]):
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
-class UUIDField(Generic[_ST, _GT], BaseField):
+class UUIDField(BaseField[_ST, _GT]):
     @overload
     def __new__(
         cls,
@@ -1245,7 +1258,7 @@ class UUIDField(Generic[_ST, _GT], BaseField):
 
 _Tuple2Like = Union[Tuple[Union[float, int], Union[float, int]], List[float], List[int]]
 
-class GeoPointField(Generic[_ST, _GT], BaseField):
+class GeoPointField(BaseField[_ST, _GT]):
     @overload
     def __new__(
         cls,
@@ -1317,33 +1330,44 @@ class GeoPointField(Generic[_ST, _GT], BaseField):
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
-_MapType = Dict[str, Any]
-
 class MapField(DictField[_T]):
     pass
 
-# TODO(sbdchd): we can make this generic if we want better typing for assignment
-#     workflow = fields.ReferenceField("Dialog")
-# if we monkey patch we can make this generic like:
-#     workflow = fields.ReferenceField[Dialog]("Dialog")
-
-class ReferenceField(Generic[_ST, _GT], BaseField):
+class ReferenceField(BaseField[_ST, _GT]):
+    def __init__(
+        self,
+        document_type: Type[_T],
+        dbref: bool = False,
+        reverse_delete_rule=...,
+        **kwargs: Any,
+    ) -> None: ...
+    @overload
     def __new__(
         cls,
         model: Union[str, Type[_T]],
-        required: bool = ...,
+        required: Literal[True] = ...,
         name: Optional[str] = ...,
         help_text: Optional[str] = ...,
         blank: bool = ...,
         **kwargs: Any,
-    ) -> ReferenceField[_ST, _GT]: ...
+    ) -> ReferenceField[_T, _T]: ...
+    @overload
+    def __new__(
+        cls,
+        model: Union[str, Type[_T]],
+        required: Literal[False] = ...,
+        name: Optional[str] = ...,
+        help_text: Optional[str] = ...,
+        blank: bool = ...,
+        **kwargs: Any,
+    ) -> ReferenceField[_T | None, _T | None]: ...
     def __getitem__(self, arg: Any) -> Any: ...
     def __set__(self, instance: Any, value: _ST) -> None: ...
     def __get__(self, instance: Any, owner: Any) -> _GT: ...
 
 _T_ENUM = TypeVar("_T_ENUM", bound=Enum)
 
-class EnumField(Generic[_ST, _GT], BaseField):
+class EnumField(BaseField[_ST, _GT]):
     # EnumField(Foo)
     @overload
     def __new__(

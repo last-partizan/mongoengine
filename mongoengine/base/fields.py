@@ -12,12 +12,13 @@ from mongoengine.base.datastructures import (
 )
 from mongoengine.common import _import_class
 from mongoengine.errors import DeprecatedError, ValidationError
-from typing import Any, Callable, Dict, Iterable, NoReturn, Optional, Union
+from typing import Any, Callable, Dict, Generic, Iterable, NoReturn, Optional, TypeVar, Union
 
 __all__ = ("BaseField", "ComplexBaseField", "ObjectIdField", "GeoJsonBaseField")
+_ST = TypeVar("_ST")
+_GT = TypeVar("_GT")
 
-
-class BaseField:
+class BaseField(Generic[_ST, _GT]):
     """A base class for fields in a MongoDB document. Instances of this class
     may be added to subclasses of `Document` to define a document's schema.
     """
@@ -265,7 +266,7 @@ class BaseField:
         self._set_owner_document(owner_document)
 
 
-class ComplexBaseField(BaseField):
+class ComplexBaseField(BaseField[_ST, _GT]):
     """Handles complex fields, such as lists / dictionaries.
 
     Allows for nesting of embedded documents inside complex types.
